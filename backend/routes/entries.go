@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/kratos2377/calorie-tracker/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+var validate = validator.New()
 var entryCollection *mongo.Collection = OpenCollection(Client, "calories")
 
 func AddEntry(c *gin.Context) {
@@ -59,7 +61,7 @@ func GetEntries(c *gin.Context) {
 	}
 
 	if err := cursor.All(ctx, &entries); err != nil {
-		c.JSON(http.StatusInternalServer, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		fmt.Println(err)
 		return
 	}
@@ -87,7 +89,7 @@ func GetEntriesByIngredient(c *gin.Context) {
 	}
 	defer cancel()
 	fmt.Println(entries)
-	c.Json(http.StatusOK, entries)
+	c.JSON(http.StatusOK, entries)
 }
 
 func GetEntryById(c *gin.Context) {
@@ -155,7 +157,7 @@ func UpdateIngredient(c *gin.Context) {
 	}
 
 	result, err := entryCollection.UpdateOne(ctx, bson.M{"_id": docID},
-		bson.D{{"$set", bson.D{{"ingredients", ingredient.Ingrdients}}}},
+		bson.D{{"$set", bson.D{{"ingredients", ingredient.Ingredients}}}},
 	)
 
 	if err != nil {
@@ -169,15 +171,15 @@ func UpdateIngredient(c *gin.Context) {
 }
 
 func DeleteEntry(c *gin.Context) {
-	entryID := c.params.ByName("id")
-	docID, _ := primitive.ObjectIDFromHex(entryId)
+	entryID := c.Params.ByName("id")
+	docID, _ := primitive.ObjectIDFromHex(entryID)
 
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
-	result, err := entryCollection.DeleteOne(ctx, bson.M("_id", docID))
+	result, err := entryCollection.DeleteOne(ctx, bson.M{"_id": docID})
 
 	if err != nil {
-		c.JSON(htto.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
